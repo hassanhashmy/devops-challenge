@@ -1,0 +1,32 @@
+name: test1 CI workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'examples/test1/**'
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    name: create terraform plan
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY  }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: terraform plan
+        uses: dflook/terraform-plan@v1
+        with:
+          label: infra
+          path: examples/test1

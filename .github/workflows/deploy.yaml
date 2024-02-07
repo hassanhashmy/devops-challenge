@@ -1,0 +1,77 @@
+# This workflow uploads website content directly to nginx docker container webroot
+# when any pushes to main branch happen
+name: Deploy website
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'examples/test2/files/s3_bucket_files/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload website to S3 
+        run: |
+          aws s3 sync examples/test2/files/s3_bucket_files s3://${{ secrets.S3_BUCKET }}
+
+      - name: Export public keys of bastion host
+        run: |
+          echo "KNOWN_HOSTS_OF_BASTION=$(ssh-keyscan -H ${{ secrets.PROXY_HOST }})" >> $GITHUB_ENV
+
+      # Install bastion private key, and configure bastion connection
+      - name: Install SSH key of bastion
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.PROXY_SSH_PRIVATE_KEY }}
+          name: id_rsa-bastion
+          known_hosts: ${{ env.KNOWN_HOSTS_OF_BASTION }}
+          config: |
+            Host bastion
+              Hostname ${{ secrets.PROXY_HOST }}
+              User ubuntu
+              IdentityFile ~/.ssh/id_rsa-bastion
+
+      # Install server private key, and configure server connection
+      - name: Install SSH key of server
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          name: id_rsa-target
+          known_hosts: unnecessary
+          config: |
+            Host target
+            HostName ${{ secrets.HOST }}
+            User ubuntu
+            IdentityFile ~/.ssh/id_rsa-target
+            ProxyCommand ssh -W %h:%p bastion
+            StrictHostKeyChecking no
+
+      - name: Deploy changes
+        # This hacks to create TTY for GitHub runners
+        # which requires to send docker command to update nginx webroot content
+        shell: 'script -q -e -c "bash {0}"'
+        run: |
+          scp -r ./examples/test2/files/s3_bucket_files target:/tmp/
+          cat > deploy.sh <<EOF
+          #!/bin/bash
+          docker cp /tmp/s3_bucket_files web:/tmp
+          docker exec -it web /bin/sh -c 'cp -a /tmp/s3_bucket_files/* /usr/share/nginx/html'
+          EOF
+          scp deploy.sh target:/tmp/deploy.sh
+          ssh -t target sh /tmp/deploy.sh
