@@ -12,3 +12,13 @@ output "s3_bucket_name" {
   description = "S3 bucket name"
   value       = aws_s3_bucket.main.id
 }
+
+output "codedeploy_app" {
+  description = "CodeDeploy app"
+  value       = aws_codedeploy_app.main.name
+}
+
+output "codedeploy_group" {
+  description = "CodeDeploy deployment group"
+  value       = aws_codedeploy_deployment_group.main.deployment_group_name
+}

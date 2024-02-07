@@ -29,6 +29,9 @@ locals {
 resource "aws_s3_bucket" "main" {
   bucket = "${local.bucket_name}-${random_id.main.hex}"
 
+  // this is for test only, please remove this when using in production
+  force_destroy = true
+
   tags = local.tags
 }
 

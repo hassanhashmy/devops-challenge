@@ -113,26 +113,22 @@ terraform destroy
 
 This writes steps need to configure a workflow with automated process to deploy changes to the EC2 private instance.
 
-### Setup GiHub Actions secrets
+### Setup GiHub Actions secrets and variables
 
 There are secrets required to be configured to allow workflow runs properly.
 
 The secrets are:
- * **HOST** : the private instance IP address
- * **USERNAME** : The private instance username   
- * **SSH_PRIVATE_KEY** : SSH private key of the private instance
- * **PROXY_HOST** : The bastion instance
- * **PROXY_USERNAME** : The bastion instance username
- * **PROXY_SSH_PRIVATE_KEY** : SSH private key of the bastion instance
  * **AWS_ACCESS_KEY_ID** : AWS access key
  * **AWS_SECRET_ACCESS_KEY** : AWS secret key
  * **AWS_REGION** : AWS region
  * **S3_BUCKET** : S3 bucket to deploy website to
 
+ The variables are:
+ * **DEPLOY_APP** - The CodeDeploy app
+ * **DEPLOY_GROUP** - The CodeDeploy deployment group
+
 where:
 * **S3_BUCKET** is the output value of `s3_bucket_name` output in terraform state which can be referenced by the command `terraform output s3_bucket_name`
-* **SSH_PRIVATE_KEY** and **PROXY_SSH_PRIVATE_KEY** can be found in AWS SSM Parameter Store with name `/ssh/key_pair/<stack name>/private_key_openssh`, for example, `/ssh/key_pair/skylake-f012302d/private_key_openssh`
-* USERNAME - default is `ubuntu`
 
 Create all required secrets in the repository. See the [Creating secrets for a repository](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository) for more information.
 
@@ -142,3 +138,16 @@ An example of deployment workflow that:
 - Push changes to S3 bucket
 - Deploy changes to the Docker container
 is available at `.github/workflows/deploy.yaml`
+
+This workflow triggered when files in `examples/test2/files/s3_bucket_files` were modified. To update that condition, change GitHub events accordingly.
+
+```
+on:
+  push:
+    branches:
+      - main
+      - codedeploy
+    paths:
+      - 'examples/test2/files/s3_bucket_files/**'  # <- CHANGE THIS for desired code app
+```
+

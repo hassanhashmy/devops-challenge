@@ -31,7 +31,7 @@ resource "null_resource" "ec2_provisioner" {
 
   provisioner "remote-exec" {
     inline = [
-      "docker run -it -d -p 80:80 --log-driver=awslogs --log-opt awslogs-region=${var.aws_region} --log-opt awslogs-group=${var.cloudwatch_log_group_name} --name web ${var.container_image}",
+      "docker run --rm -it -d -p 80:80 --log-driver=awslogs --log-opt awslogs-region=${var.aws_region} --log-opt awslogs-group=${var.cloudwatch_log_group_name} --name web ${var.container_image}",
       "aws s3 sync s3://${var.bucket_name} /tmp/html",
       "docker cp /tmp/html web:/tmp",
       "docker exec -it web /bin/sh -c 'cp -a /tmp/html/* /usr/share/nginx/html'",

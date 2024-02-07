@@ -23,6 +23,18 @@ apt-get update -y
 # Install docker
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+# Configure docker logging
+
+cat > /etc/docker/daemon.json <<-EOD
+{
+  "log-driver": "awslogs",
+  "log-opts": {
+    "awslogs-region": "${data.aws_region.current.name}",
+    "awslogs-group": "${var.cloudwatch_log_group_name}"
+  }
+}
+EOD
+
 # Add ubuntu user to docker group to allow it runs docker command
 usermod -aG docker ubuntu
 
@@ -33,6 +45,13 @@ unzip awscliv2.zip
 ./aws/install
 rm awscliv2.zip
 rm -rf ./aws/
+
+# Install CodeDeploy
+apt-get install -y ruby
+cd /tmp
+wget https://aws-codedeploy-eu-west-2.s3.eu-west-2.amazonaws.com/latest/install
+chmod +x ./install
+./install auto
   EOF
 
   tags = merge({ Name = local.name }, var.tags)
@@ -41,6 +60,8 @@ rm -rf ./aws/
 ################################################################################
 # Data source
 ################################################################################
+
+data "aws_region" "current" {}
 
 data "aws_s3_bucket" "this" {
   bucket = var.bucket_name
@@ -190,7 +211,7 @@ module "ec2_instance" {
   user_data                   = local.user_data
   user_data_replace_on_change = true
 
-  tags = var.tags
+  tags = merge({ Type = "CodeBuild" }, local.tags)
 }
 
 // Get latest AMI ids for Ubuntu Jammy 22.04
